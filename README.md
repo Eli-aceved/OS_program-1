@@ -1,2 +1,6 @@
 # OS_program-1
-Elizabeth Acevedo. Implements a simple Unix-like shell called "SLOsh." This shell will support basic command execution, built-in commands, signal handling, I/O redirection, and piping. 
+## Authors:
+Elizabeth Acevedo & Alejandro Regalado
+
+## Description
+Implements a simple Unix-like shell called "SLOsh." This shell will support basic command execution, built-in commands, signal handling, I/O redirection, and piping. 

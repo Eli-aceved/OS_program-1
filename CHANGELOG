@@ -1,0 +1,5 @@
+## Version 0.0.1 - Signal Handling complete
+- Signal handling function complete
+- main contains sig hand code
+- Working on parsing input
+- Tested sig hand––works as expected
