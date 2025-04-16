@@ -1,0 +1,5 @@
+/*****************************************************************************
+ * File name:  SLOsh.c
+ *             SLOsh - San Luis Obispo Shell
+ * 
+ * Author:    Elizabeth Acevedo & Alejadro Regalado

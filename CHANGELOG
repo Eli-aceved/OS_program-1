@@ -1,3 +1,9 @@
+## Version 0.4.0 - Piping Complete
+- Piping done (not multi-piping)
+- Test complete: cat SLOsh.c | head -n 5
+            or   cat SLOsh.c | head -n 5 > test.txt
+- Second child process was created
+
 ## Version 0.3.0 - I/O Redirection
 - Redirection and append complete
 - Can now recognize > and >> 

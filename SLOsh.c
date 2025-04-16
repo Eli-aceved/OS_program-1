@@ -119,7 +119,7 @@ void execute_command(char **args) {
     /* Redirection Settings */
     int redirect = 0;
     int append = 0;
-    int forward_indx = 0;//pipe_indxes[cur_pipe] + 1;
+    int forward_indx = 0;
 
     while(args[forward_indx] != NULL) {
         if (strcmp(args[forward_indx], ">") == 0) {
@@ -136,17 +136,38 @@ void execute_command(char **args) {
         forward_indx++;
     }
     
+    /* Pipes */
+    int piping = 0; // Flag to indicate if piping is used
+    int pipe_indx = 0; // Index of the pipe
+    //int first_cmd_indx = 0; // Index of the first command
+    int pipe_fd[2]; // File descriptors for the pipe, pipe_fd[0] for reading, pipe_fd[1] for writing
     
-    /* FORK */
+    // Loop through args to check for a pipe
+    while (args[pipe_indx] != NULL) {
+        if (strcmp(args[pipe_indx], "|") == 0) { // Check for pipe
+            piping = 1; // Set piping flag to 1
+            if (pipe(pipe_fd) == -1) { // Create a pipe
+                perror("pipe() failed");
+                exit(EXIT_FAILURE);
+            }
+            args[pipe_indx] = NULL; // Null-terminate the first command
+            break; // Exit the loop
+        }
+        pipe_indx++;
+    }
+    /* Main Command FORK */
     int status = 0; // Status of the child process
     pid_t pid; // Process ID
     pid = fork(); // Create a new process
 
-    if (pid < 0) {
+    if (pid < 0) { // Fork failed
+        // Handle error
         perror("fork() failed");
         exit(EXIT_FAILURE); // Fork failed
     }
-    else if (pid == 0) { // Child process
+    else if (pid == 0) {
+        /* CHILD PROCESS */
+
         /* Reset signal handling */
         struct sigaction sa;
         sa.sa_handler = sigint_handler; // Call sigint_handler() when SIGINT is received
@@ -154,43 +175,100 @@ void execute_command(char **args) {
         sa.sa_flags = SA_RESTART; // Restart system calls if interrupted
         signal(SIGINT, SIG_DFL); // Reset SIGINT handler using SIG_DFL because this will allow the child process to terminate when Ctrl+C is pressed
 
-
         /* I/O Redirection */
         // If redirecting, change output to file
-        if (redirect) {//&& !piping) {
+        if (redirect && !piping) {
             int file = open(args[forward_indx + 1], O_WRONLY | O_CREAT | append, 0777);
             if (file == -1) {
                 perror("open() failed");
                 exit(EXIT_FAILURE);
             }
             dup2(file, STDOUT_FILENO); // Duplicate the file descriptor, 1 is the file descriptor for stdout
-            close(file);// Close the original file descriptor
+            close(file);               // Close the original file descriptor
+        }
 
+        /* Pipes */
+        if (piping) { // If piping is used
+            /* Use Write Wnd of the Pipe */
+            close(pipe_fd[0]); // Close the read end
+            dup2(pipe_fd[1], STDOUT_FILENO); // Duplicate the write end of the pipe to stdout
+            close(pipe_fd[1]); // Close the original write end
         }
 
         /* Execute basic commands */
         if (execvp(args[0], args) == -1) { // execvp() is better than execv() because it searches for the command in the PATH environment variable (pretty much anywhere in the computer)
             perror("execv() failed");
+            exit(EXIT_FAILURE); // execvp failed
         }
     }
-    else {               // Parent process
+    else {
+        /* PARENT PROCESS */
+
+        /* Second FORK used for Piping */
+        if (piping) { 
+            if (fork() == 0) {
+                /* CHILD PROCESS */
+                /* Reset signal handling */
+                struct sigaction sa;
+                sa.sa_handler = sigint_handler; // Call sigint_handler() when SIGINT is received
+                sigemptyset(&sa.sa_mask);
+                sa.sa_flags = SA_RESTART; // Restart system calls if interrupted
+                signal(SIGINT, SIG_DFL); // Reset SIGINT handler using SIG_DFL because this will allow the child process to terminate when Ctrl+C is pressed
+
+                /* I/O Redirection */
+                // If redirecting, change output to file
+                if (redirect) {//&& !piping) {
+                    int file = open(args[forward_indx + 1], O_WRONLY | O_CREAT | append, 0777);
+                    if (file == -1) {
+                        perror("open() failed");
+                        exit(EXIT_FAILURE);
+                    }
+                    dup2(file, STDOUT_FILENO); // Duplicate the file descriptor, 1 is the file descriptor for stdout
+                    close(file);               // Close the original file descriptor
+                }
+
+                /* Read End of the Pipe */
+                close(pipe_fd[1]); // Close the write end
+                dup2(pipe_fd[0], STDIN_FILENO); // Duplicate the read end of the pipe to stdin
+                close(pipe_fd[0]); // Close the original read end
+
+                /* Execute second command */
+                if (execvp(args[pipe_indx + 1], &args[pipe_indx + 1]) == -1) { // execvp() is better than execv() because it searches for the command in the PATH environment variable (pretty much anywhere in the computer)
+                    perror("execv() failed");
+                    exit(EXIT_FAILURE); // execvp failed
+                }
+            }
+
+            /* PARENT PROCESS */
+            close(pipe_fd[0]); // Close the read end of the pipe
+            close(pipe_fd[1]); // Close the write end of the pipe
+
+            child_running = 2; // Set child_running to 2 to indicate a second child process is running
+
+        }
+        // Second child process is not running
         child_running = 1; // Set child_running to 1 to indicate a child process is running
-        // Wait for the child process to finish
-        if (waitpid(pid, &status, 0) == -1) { 
-            perror("waitpid() failed");
-            exit(EXIT_FAILURE); // Waitpid failed
-        }
 
-        if (WIFEXITED(status)) { // Check if the child process terminated normally
-            printf("Child process exited with status %d\n", WEXITSTATUS(status)); // Get exit code (0-255)
+        while (child_running-- != 0) { // Resets child_running to 0 after waiting for the child process
+            pid_t child_pid = waitpid(pid, &status, 0); // Wait for the child process to finish
+            // Wait for the child(ren) process(es) to finish
+            if (child_pid == -1) { 
+                perror("waitpid() failed");
+                exit(EXIT_FAILURE); // Waitpid failed
+            }
+            else if (child_pid > 0) { // 
+                if (WIFEXITED(status)) { // Check if the child process terminated normally
+                    int exit_code = WEXITSTATUS(status); // Get the exit code of the child process
+                    if (exit_code != 0) {
+                        printf("Child process exited with status %d\n", exit_code); // Get exit code (0-255)
+                    }
+                }
+                else if (WIFSIGNALED(status)) { // Check if the child process was terminated by a signal
+                    printf("Child process terminated by signal %d\n", WTERMSIG(status)); // Get the signal number that terminated the child process
+                }
+            }
         }
-        if (WIFSIGNALED(status)) { // Check if the child process was terminated by a signal
-            printf("Child process terminated by signal %d\n", WTERMSIG(status)); // Get the signal number that terminated the child process
-        }
-        child_running = 0; // Reset child_running to 0 to indicate no child process is running
     }
-
-
 
     /* Hints:
     * 1. Fork a child process OK

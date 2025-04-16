@@ -1,9 +1,0 @@
-CHANGELOG
-Makefile
-README.md
-SLOsh
-SLOsh.c
-SLOsh.h
-cmd.txt
-testDir
-today.txt
