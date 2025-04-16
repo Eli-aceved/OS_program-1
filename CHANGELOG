@@ -1,3 +1,10 @@
+## Version 0.1.0 - Built-in Commands & Parsing of the input are complete
+- Built-in cmds: cd and exit
+- Parsing input command
+    - Delimeters: space and newline (as of now)
+- When tested, now reads input and can change directory (into and back out) as well as exit the shell
+
+
 ## Version 0.0.1 - Signal Handling complete
 - Signal handling function complete
 - main contains sig hand code

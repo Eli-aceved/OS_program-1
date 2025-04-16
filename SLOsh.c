@@ -9,7 +9,7 @@
  #include <stdlib.h>
  #include <stdint.h>
  #include <string.h>
- #include <unistd.h>    // write()
+ #include <unistd.h>    // write(), chdir()
  #include <sys/wait.h>
  #include <sys/types.h>
  #include <fcntl.h>
@@ -86,15 +86,36 @@
   */
  int parse_input(char *input, char **args) {
     /* TODO: Your implementation here */
-    // Tokenize the input string using delimiters
-    /*char *token;
-    const char *delimiters = "|>";
-    strtok(input, delimiters); */
+    // Tokenize the input string using space as a delimiter
+    // Note: strtok() modifies the input string, so make a copy if needed
+    //char *input_copy = strdup(input); // Duplicate the input string
+    int i = 0; // Index for args array
+    char *token;
+    int args_parsed = 0; // Number of arguments parsed
 
+    token = strtok(input, " \n"); 
+    // Check if there are no tokens
+    if (token == NULL) {
+        printf("DEBUG 0: No arguments to be parsed\n");
+        return 0; // No arguments parsed
+    }
+    
+    args[i] = token; // Store the first token in the args array
+    args_parsed++; // Increment the number of arguments parsed
     // Store tokens in args array
+    while (token != NULL) {
+        // Store next token into args array
+        i++;
+        token = strtok(NULL, " \n"); // Get the next token
+        args[i] = token; // Store the token in the args array
+        args_parsed++; // Increment the number of arguments parsed
+    }
+    printf("DEBUG 2: Parsed %d arguments (includes NULL)\n", args_parsed);
+    for (int j = 0; j < args_parsed; j++) {
+        printf("args[%d] = %s\n", j, args[j]);
+    }
 
-
-    return 0;
+    return args_parsed; // Return the number of arguments parsed
  }
  
  /**
@@ -129,14 +150,35 @@
   * @param args Array of command arguments (NULL-terminated)
   * @return 0 to exit shell, 1 to continue, -1 if not a built-in command
   */
- int handle_builtin(char **args) {
-     /* TODO: Your implementation here */
-     return -1;  /* Not a builtin command */
- }
+int handle_builtin(char **args) {
+    /* TODO: Your implementation here */
+    if (args[0] == NULL) {
+        return -2; // No command entered
+    }
+    // Check for built-in commands
+    if (strcmp(args[0], "cd") == 0) {
+        if (args[1] == NULL) {
+            fprintf(stderr, "Error: cd command is missing argument(s)\n");
+            return 1; // Continue the shell, just missing argument. Have user retry
+        } 
+        else {
+            // Change directory using chdir() & check if the argument is a valid directory
+            if (chdir(args[1]) != 0) {
+                perror("cd command");
+            }
+            return 1; // Continue the shell
+        }
+    }
+    else if (strcmp(args[0], "exit") == 0) {
+        return 0; // Exit the shell
+    }
+    // Return value for built-in commands (0 success, -1 failure)
+    return -1; // Not a built-in command
+}
  
  int main(void) {
     char input[MAX_INPUT_SIZE];
-    char *args[MAX_ARGS];
+    char *args[MAX_ARGS] = {NULL}; // Initialize args array to NULL
     int status = 1;
     int builtin_result;
 
