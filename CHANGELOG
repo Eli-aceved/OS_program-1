@@ -1,3 +1,9 @@
+## Version 0.3.0 - I/O Redirection
+- Redirection and append complete
+- Can now recognize > and >> 
+- Header file now holds valuable information
+
+
 ## Version 0.2.0 - Basic Execution Commands Complete
 - Basic command execution is complete in execute_command()
 - I can now run commands like ls, ls -a, mv, rm, rm -r, etc.

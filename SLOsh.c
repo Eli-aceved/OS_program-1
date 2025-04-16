@@ -1,35 +1,26 @@
-/**
- * SLOsh - San Luis Obispo Shell
- * CSC 453 - Operating Systems
+/*****************************************************************************
+ * File name:  SLOsh.c
+ *             SLOsh - San Luis Obispo Shell
  * 
- * TODO: Complete the implementation according to the comments
- */
+ * Author:    Elizabeth Acevedo & Alejadro Regalado
+ * 
+ * Date:      04/15/2025
+ * 
+ * Class:      CSC 453 - Operating Systems
+ * 
+ * Description: This program demonstrates a simple shell implementation in C. 
+ * 
+ * Utilization: 
+ *  make
+ *  ./SLOsh
+ *  <enter command>
+ * 
+ *****************************************************************************/
 
- #include <stdio.h>
- #include <stdlib.h>
- #include <stdint.h>
- #include <string.h>
- #include <unistd.h>    // write(), chdir()
- #include <sys/wait.h>
- #include <sys/types.h>
- #include <fcntl.h>
- #include <signal.h>    // sigaction()
- #include <limits.h>
- #include <errno.h>
- 
- /* Define PATH_MAX if it's not available */
- #ifndef PATH_MAX
- #define PATH_MAX 4096
- #endif
- 
- #define MAX_INPUT_SIZE 1024
- #define MAX_ARGS 64
+ #include "SLOsh.h" // Header file containing function prototypes and constants
  
  /* Global variable for signal handling */
  volatile sig_atomic_t child_running = 0;
- 
- /* PROTOTYPES */
- void display_prompt(void);
  
  /**
   * Signal handler for SIGINT (Ctrl+C)
@@ -125,7 +116,28 @@
  * @param args Array of command arguments (NULL-terminated)
  */
 void execute_command(char **args) {
-    /* TODO: Your implementation here */
+    /* Redirection Settings */
+    int redirect = 0;
+    int append = 0;
+    int forward_indx = 0;//pipe_indxes[cur_pipe] + 1;
+
+    while(args[forward_indx] != NULL) {
+        if (strcmp(args[forward_indx], ">") == 0) {
+            redirect = 1;
+            args[forward_indx] = NULL;
+            break;
+        }
+        else if (strcmp(args[forward_indx], ">>") == 0) {
+            redirect = 1;
+            append = O_APPEND;
+            args[forward_indx] = NULL;
+            break;
+        }
+        forward_indx++;
+    }
+    
+    
+    /* FORK */
     int status = 0; // Status of the child process
     pid_t pid; // Process ID
     pid = fork(); // Create a new process
@@ -135,14 +147,28 @@ void execute_command(char **args) {
         exit(EXIT_FAILURE); // Fork failed
     }
     else if (pid == 0) { // Child process
-        // Reset signal handling
+        /* Reset signal handling */
         struct sigaction sa;
         sa.sa_handler = sigint_handler; // Call sigint_handler() when SIGINT is received
         sigemptyset(&sa.sa_mask);
         sa.sa_flags = SA_RESTART; // Restart system calls if interrupted
         signal(SIGINT, SIG_DFL); // Reset SIGINT handler using SIG_DFL because this will allow the child process to terminate when Ctrl+C is pressed
 
-        // Execute the command
+
+        /* I/O Redirection */
+        // If redirecting, change output to file
+        if (redirect) {//&& !piping) {
+            int file = open(args[forward_indx + 1], O_WRONLY | O_CREAT | append, 0777);
+            if (file == -1) {
+                perror("open() failed");
+                exit(EXIT_FAILURE);
+            }
+            dup2(file, STDOUT_FILENO); // Duplicate the file descriptor, 1 is the file descriptor for stdout
+            close(file);// Close the original file descriptor
+
+        }
+
+        /* Execute basic commands */
         if (execvp(args[0], args) == -1) { // execvp() is better than execv() because it searches for the command in the PATH environment variable (pretty much anywhere in the computer)
             perror("execv() failed");
         }
@@ -167,11 +193,11 @@ void execute_command(char **args) {
 
 
     /* Hints:
-    * 1. Fork a child process 
-    * 2. In the child, reset signal handling and execute the command
-    * 3. In the parent, wait for the child and handle its exit status
+    * 1. Fork a child process OK
+    * 2. In the child, reset signal handling and execute the command OK
+    * 3. In the parent, wait for the child and handle its exit status OK
     * 4. For pipes, create two child processes connected by a pipe
-    * 5. For redirection, use open() and dup2() to redirect stdout
+    * 5. For redirection, use open() and dup2() to redirect stdout OK
     */
 }
  
