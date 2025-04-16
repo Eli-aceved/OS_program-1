@@ -96,7 +96,7 @@
     token = strtok(input, " \n"); 
     // Check if there are no tokens
     if (token == NULL) {
-        printf("DEBUG 0: No arguments to be parsed\n");
+        printf("No arguments to be parsed. Not enough arguments.\n");
         return 0; // No arguments parsed
     }
     
@@ -110,35 +110,70 @@
         args[i] = token; // Store the token in the args array
         args_parsed++; // Increment the number of arguments parsed
     }
-    printf("DEBUG 2: Parsed %d arguments (includes NULL)\n", args_parsed);
-    for (int j = 0; j < args_parsed; j++) {
-        printf("args[%d] = %s\n", j, args[j]);
-    }
 
     return args_parsed; // Return the number of arguments parsed
  }
  
- /**
-  * Execute the given command with its arguments
-  * 
-  * TODO: Implement command execution with support for:
-  * 1. Basic command execution
-  * 2. Pipes (|)
-  * 3. Output redirection (> and >>)
-  * 
-  * @param args Array of command arguments (NULL-terminated)
-  */
- void execute_command(char **args) {
-     /* TODO: Your implementation here */
-     
-     /* Hints:
-      * 1. Fork a child process
-      * 2. In the child, reset signal handling and execute the command
-      * 3. In the parent, wait for the child and handle its exit status
-      * 4. For pipes, create two child processes connected by a pipe
-      * 5. For redirection, use open() and dup2() to redirect stdout
-      */
- }
+/**
+ * Execute the given command with its arguments
+ * 
+ * TODO: Implement command execution with support for:
+ * 1. Basic command execution
+ * 2. Pipes (|)
+ * 3. Output redirection (> and >>)
+ * 
+ * @param args Array of command arguments (NULL-terminated)
+ */
+void execute_command(char **args) {
+    /* TODO: Your implementation here */
+    int status = 0; // Status of the child process
+    pid_t pid; // Process ID
+    pid = fork(); // Create a new process
+
+    if (pid < 0) {
+        perror("fork() failed");
+        exit(EXIT_FAILURE); // Fork failed
+    }
+    else if (pid == 0) { // Child process
+        // Reset signal handling
+        struct sigaction sa;
+        sa.sa_handler = sigint_handler; // Call sigint_handler() when SIGINT is received
+        sigemptyset(&sa.sa_mask);
+        sa.sa_flags = SA_RESTART; // Restart system calls if interrupted
+        signal(SIGINT, SIG_DFL); // Reset SIGINT handler using SIG_DFL because this will allow the child process to terminate when Ctrl+C is pressed
+
+        // Execute the command
+        if (execvp(args[0], args) == -1) { // execvp() is better than execv() because it searches for the command in the PATH environment variable (pretty much anywhere in the computer)
+            perror("execv() failed");
+        }
+    }
+    else {               // Parent process
+        child_running = 1; // Set child_running to 1 to indicate a child process is running
+        // Wait for the child process to finish
+        if (waitpid(pid, &status, 0) == -1) { 
+            perror("waitpid() failed");
+            exit(EXIT_FAILURE); // Waitpid failed
+        }
+
+        if (WIFEXITED(status)) { // Check if the child process terminated normally
+            printf("Child process exited with status %d\n", WEXITSTATUS(status)); // Get exit code (0-255)
+        }
+        if (WIFSIGNALED(status)) { // Check if the child process was terminated by a signal
+            printf("Child process terminated by signal %d\n", WTERMSIG(status)); // Get the signal number that terminated the child process
+        }
+        child_running = 0; // Reset child_running to 0 to indicate no child process is running
+    }
+
+
+
+    /* Hints:
+    * 1. Fork a child process 
+    * 2. In the child, reset signal handling and execute the command
+    * 3. In the parent, wait for the child and handle its exit status
+    * 4. For pipes, create two child processes connected by a pipe
+    * 5. For redirection, use open() and dup2() to redirect stdout
+    */
+}
  
  /**
   * Check for and handle built-in commands
@@ -189,7 +224,6 @@ int handle_builtin(char **args) {
     sigemptyset(&sa.sa_mask);
     sa.sa_flags = SA_RESTART; // Restart system calls if interrupted
     sigaction(SIGINT, &sa, NULL);
-
 
     while (status) {
         display_prompt();

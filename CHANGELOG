@@ -1,3 +1,8 @@
+## Version 0.2.0 - Basic Execution Commands Complete
+- Basic command execution is complete in execute_command()
+- I can now run commands like ls, ls -a, mv, rm, rm -r, etc.
+- fork() was used here
+
 ## Version 0.1.0 - Built-in Commands & Parsing of the input are complete
 - Built-in cmds: cd and exit
 - Parsing input command
