@@ -9,6 +9,13 @@
  * Class:      CSC 453 - Operating Systems
  * 
  * Description: This program demonstrates a simple shell implementation in C. 
+ * It supports basic command execution, pipes, output redirection, and built-in
+ * commands like "cd" and "exit". The shell handles user input, parses commands,
+ * and executes them in child processes. It also manages signal handling for
+ * Ctrl+C (SIGINT) to prevent the shell from terminating when a child process
+ * is running. The shell provides a command prompt with the current working
+ * directory and allows users to execute commands interactively.
+ * 
  * 
  * Utilization: 
  *  make
